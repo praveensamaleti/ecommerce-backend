@@ -125,7 +125,7 @@ public class DataInitializer implements CommandLineRunner {
             List<Product> products = new ArrayList<>();
             Random random = new Random();
 
-            for (int i = 0; i < 21; i++) {
+            for (int i = 0; i < 1; i++) {
                 // Generate 105 products total (21 loops * 5 products per loop)
                 products.add(createProduct(electronics[i % 10] + " " + UUID.randomUUID().toString().substring(0, 4), Category.Electronics, electronicsImgs[i % 10], 50 + random.nextInt(1950), random));
                 products.add(createProduct(clothing[i % 10] + " " + UUID.randomUUID().toString().substring(0, 4), Category.Clothing, clothingImgs[i % 10], 15 + random.nextInt(85), random));
