@@ -12,9 +12,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -124,23 +122,23 @@ public class DataInitializer implements CommandLineRunner {
                 "https://images.unsplash.com/photo-1591117207239-788cd8594840?w=500&q=80"
             };
 
-            java.util.List<Product> products = new java.util.ArrayList<>();
-            java.util.Random random = new java.util.Random();
+            List<Product> products = new ArrayList<>();
+            Random random = new Random();
 
             for (int i = 0; i < 21; i++) {
-                // Add one of each template to reach 105 products total
-                products.add(createProduct(electronics[i % 10] + " " + (i / 10 + 1), Category.Electronics, electronicsImgs[i % 10], 50 + random.nextInt(1950), random));
-                products.add(createProduct(clothing[i % 10] + " " + (i / 10 + 1), Category.Clothing, clothingImgs[i % 10], 15 + random.nextInt(85), random));
-                products.add(createProduct(home[i % 10] + " " + (i / 10 + 1), Category.Home, homeImgs[i % 10], 20 + random.nextInt(480), random));
-                products.add(createProduct(books[i % 10] + " " + (i / 10 + 1), Category.Books, booksImgs[i % 10], 10 + random.nextInt(40), random));
-                products.add(createProduct(sports[i % 10] + " " + (i / 10 + 1), Category.Sports, sportsImgs[i % 10], 10 + random.nextInt(290), random));
+                // Generate 105 products total (21 loops * 5 products per loop)
+                products.add(createProduct(electronics[i % 10] + " " + UUID.randomUUID().toString().substring(0, 4), Category.Electronics, electronicsImgs[i % 10], 50 + random.nextInt(1950), random));
+                products.add(createProduct(clothing[i % 10] + " " + UUID.randomUUID().toString().substring(0, 4), Category.Clothing, clothingImgs[i % 10], 15 + random.nextInt(85), random));
+                products.add(createProduct(home[i % 10] + " " + UUID.randomUUID().toString().substring(0, 4), Category.Home, homeImgs[i % 10], 20 + random.nextInt(480), random));
+                products.add(createProduct(books[i % 10] + " " + UUID.randomUUID().toString().substring(0, 4), Category.Books, booksImgs[i % 10], 10 + random.nextInt(40), random));
+                products.add(createProduct(sports[i % 10] + " " + UUID.randomUUID().toString().substring(0, 4), Category.Sports, sportsImgs[i % 10], 10 + random.nextInt(290), random));
             }
 
             productRepository.saveAll(products);
         }
     }
 
-    private Product createProduct(String name, Category category, String img, int basePrice, java.util.Random random) {
+    private Product createProduct(String name, Category category, String img, int basePrice, Random random) {
         Map<String, String> specs = new HashMap<>();
         specs.put("Manufacturer", "GlobalBrand " + (random.nextInt(10) + 1));
         specs.put("Warranty", (random.nextInt(3) + 1) + " years");
