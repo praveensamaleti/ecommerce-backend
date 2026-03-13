@@ -1,4 +1,4 @@
-name: Build and Deploy to AWS App Runner
+name: Build and Deploy to AWS ECS
 
 on:
   push:
@@ -7,7 +7,12 @@ on:
 env:
   AWS_REGION: ap-southeast-2                   # set this to your preferred AWS region
   ECR_REPOSITORY: ecommerce-backend        # set this to your Amazon ECR repository name
-  APP_RUNNER_SERVICE_NAME: ecommerce-api   # set this to your AWS App Runner service name
+  ECS_SERVICE: ecommerce-service            # set this to your Amazon ECS service name
+  ECS_CLUSTER: ecommerce-cluster            # set this to your Amazon ECS cluster name
+  ECS_TASK_DEFINITION: task-definition.json # set this to the path to your Amazon ECS task definition
+                                               # file, e.g. .aws/task-definition.json
+  CONTAINER_NAME: ecommerce-backend         # set this to the name of the container in the
+                                               # containerDefinitions section of your task definition
 
 jobs:
   deploy:
@@ -48,19 +53,23 @@ jobs:
       run: |
         # Build a docker container and
         # push it to ECR so that it can
-        # be deployed to App Runner.
+        # be deployed to ECS.
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-    - name: Deploy to AWS App Runner
-      id: deploy-apprunner
-      uses: awslabs/amazon-app-runner-deploy@main
+    - name: Fill in the new image ID in the Amazon ECS task definition
+      id: task-def
+      uses: aws-actions/amazon-ecs-render-task-definition@v1
       with:
-        service: ${{ env.APP_RUNNER_SERVICE_NAME }}
+        task-definition: ${{ env.ECS_TASK_DEFINITION }}
+        container-name: ${{ env.CONTAINER_NAME }}
         image: ${{ steps.build-image.outputs.image }}
-        access-role-arn: ${{ secrets.AWS_APP_RUNNER_ROLE_ARN }}
-        region: ${{ env.AWS_REGION }}
-        cpu: 1
-        memory: 2
-        wait-for-service-stability-seconds: 600
+
+    - name: Deploy Amazon ECS task definition
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        task-definition: ${{ steps.task-def.outputs.task-definition }}
+        service: ${{ env.ECS_SERVICE }}
+        cluster: ${{ env.ECS_CLUSTER }}
+        wait-for-service-stability: true
