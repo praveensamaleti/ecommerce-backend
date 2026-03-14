@@ -32,7 +32,6 @@ public class Product {
     @ElementCollection
     @CollectionTable(name = "product_images", joinColumns = @JoinColumn(name = "product_id"))
     @Column(name = "image_url")
-    @Builder.Default
     private List<String> images = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
@@ -56,7 +55,6 @@ public class Product {
     private Map<String, String> specs;
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
     private List<Review> reviews = new ArrayList<>();
 
     private Boolean featured;

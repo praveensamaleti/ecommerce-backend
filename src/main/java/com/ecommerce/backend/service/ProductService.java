@@ -32,8 +32,8 @@ public class ProductService {
         Specification<Product> spec = (root, q, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             
-            if (query != null && !query.trim().isEmpty()) {
-                predicates.add(cb.like(cb.lower(root.get("name")), "%" + query.trim().toLowerCase() + "%"));
+            if (query != null && !query.isEmpty()) {
+                predicates.add(cb.like(cb.lower(root.get("name")), "%" + query.toLowerCase() + "%"));
             }
             if (category != null) {
                 predicates.add(cb.equal(root.get("category"), category));
@@ -45,7 +45,7 @@ public class ProductService {
                 predicates.add(cb.lessThanOrEqualTo(root.get("price"), maxPrice));
             }
             
-            return predicates.isEmpty() ? null : cb.and(predicates.toArray(new Predicate[0]));
+            return cb.and(predicates.toArray(new Predicate[0]));
         };
         
         Page<Product> productPage = productRepository.findAll(spec, pageable);
