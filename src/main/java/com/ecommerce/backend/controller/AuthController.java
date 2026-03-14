@@ -133,4 +133,16 @@ public class AuthController {
 
         return ResponseEntity.ok(userDto);
     }
+
+    @PostMapping("/logout")
+    @Operation(summary = "Logout user", description = "Invalidates the user's refresh token and clears the security context")
+    public ResponseEntity<?> logoutUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated() && !authentication.getPrincipal().equals("anonymousUser")) {
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            refreshTokenService.deleteByUserId(userDetails.getId());
+        }
+        SecurityContextHolder.clearContext();
+        return ResponseEntity.ok("User logged out successfully!");
+    }
 }

@@ -28,7 +28,11 @@ public class RefreshTokenService {
         return refreshTokenRepository.findByToken(token);
     }
 
+    @Transactional
     public RefreshToken createRefreshToken(String userId) {
+        // First delete any existing refresh tokens for this user
+        refreshTokenRepository.deleteByUser(userRepository.findById(userId).get());
+
         RefreshToken refreshToken = new RefreshToken();
 
         refreshToken.setUser(userRepository.findById(userId).get());
