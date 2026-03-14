@@ -20,8 +20,12 @@ public class CustomIdGenerator implements IdentifierGenerator {
             prefix = "o";
         }
         
-        // Generate unique IDs like "u-7d3f2", "p-8a1c9", "o-4b2e5"
-        String uniqueSuffix = UUID.randomUUID().toString().substring(0, 5);
-        return prefix + "-" + uniqueSuffix;
+        // Generate IDs like "u1234", "p1001", "o987654"
+        // For simplicity, using a random number here
+        long random = (long) (Math.random() * 9000L) + 1000L;
+        if (object instanceof Order) {
+            random = (long) (Math.random() * 900000L) + 100000L; // 6 digits for order
+        }
+        return prefix + random;
     }
 }
