@@ -1,0 +1,58 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS CloudFormation Template for Creating a Redis ElastiCache Cluster (Free Tier Eligible)
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC where Redis will be deployed
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Subnets for Redis Subnet Group
+  AppSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Security Group ID of the application that needs to connect to Redis
+
+Resources:
+  # Security Group for Redis
+  RedisSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow access to Redis from application
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6379
+          SourceSecurityGroupId: !Ref AppSecurityGroupId
+
+  # Redis Subnet Group
+  RedisSubnetGroup:
+    Type: AWS::ElastiCache::SubnetGroup
+    Properties:
+      Description: Subnet Group for Redis ElastiCache
+      SubnetIds: !Ref SubnetIds
+
+  # Redis Replication Group (Cluster Mode Disabled)
+  RedisCluster:
+    Type: AWS::ElastiCache::ReplicationGroup
+    Properties:
+      ReplicationGroupDescription: Redis Cluster for E-commerce Backend
+      Engine: redis
+      EngineVersion: '7.0'
+      CacheNodeType: cache.t3.micro # Free Tier Eligible
+      NumCacheClusters: 1 # Single node for free tier
+      AutomaticFailoverEnabled: false # Requires at least 2 nodes
+      CacheSubnetGroupName: !Ref RedisSubnetGroup
+      SecurityGroupIds:
+        - !GetAtt RedisSecurityGroup.GroupId
+      AtRestEncryptionEnabled: true
+      TransitEncryptionEnabled: true
+      # AuthToken: 'your-redis-password-here' # Optional: Add AuthToken if needed
+
+Outputs:
+  RedisEndpoint:
+    Description: Redis Primary Endpoint
+    Value: !GetAtt RedisCluster.PrimaryEndPoint.Address
+  RedisPort:
+    Description: Redis Port
+    Value: !GetAtt RedisCluster.PrimaryEndPoint.Port
