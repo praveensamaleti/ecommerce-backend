@@ -35,5 +35,6 @@
     ],
     "cpu": "2048",
     "memory": "4096",
-    "executionRoleArn": "arn:aws:iam::147914448101:role/service-role/ecsTaskExecutionRole"
+    "executionRoleArn": "arn:aws:iam::147914448101:role/service-role/ecsTaskExecutionRole",
+    "taskRoleArn": "arn:aws:iam::147914448101:role/taskRole"
 }
