@@ -58,7 +58,7 @@ public class OrderService {
             
             // Update stock
             if (product.getStock() < itemReq.getQty()) {
-                throw new RuntimeException("Insufficient stock for product:   " + product.getName());
+                throw new RuntimeException("Insufficient stock for product: " + product.getName());
             }
             product.setStock(product.getStock() - itemReq.getQty());
             productRepository.save(product);
