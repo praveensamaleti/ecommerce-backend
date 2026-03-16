@@ -43,7 +43,7 @@ public class OrderService {
 
         for (CreateOrderRequest.OrderItemRequest itemReq : request.getItems()) {
             Product product = productRepository.findById(itemReq.getProductId())
-                    .orElseThrow(() -> new RuntimeException("Product not found: " + itemReq.getProductId()));
+                    .orElseThrow(() -> new RuntimeException("Product not found  : " + itemReq.getProductId()));
             
             OrderItem item = OrderItem.builder()
                     .productId(product.getId())
