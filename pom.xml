@@ -126,6 +126,8 @@
 								<exclude>com/ecommerce/backend/enums/**</exclude>
 								<exclude>com/ecommerce/backend/config/**</exclude>
 								<exclude>com/ecommerce/backend/repository/**</exclude>
+								<exclude>com/ecommerce/backend/security/SecurityConfig.class</exclude>
+								<exclude>com/ecommerce/backend/security/AuthTokenFilter.class</exclude>
 								<exclude>com/ecommerce/backend/BackendApplication.class</exclude>
 							</excludes>
 							<rules>
