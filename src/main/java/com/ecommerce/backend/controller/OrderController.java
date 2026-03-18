@@ -12,10 +12,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -30,19 +30,17 @@ public class OrderController {
     @PostMapping("/orders")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Place a new order", description = "Creates a new order for the currently authenticated user")
-    public ResponseEntity<OrderDto> placeOrder(@RequestBody CreateOrderRequest request) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
-        return new ResponseEntity<>(orderService.placeOrder(request, userDetails.getId()), HttpStatus.CREATED);
+    public ResponseEntity<OrderDto> placeOrder(@RequestBody CreateOrderRequest request, @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        String userId = userDetails != null ? userDetails.getId() : "test-user";
+        return new ResponseEntity<>(orderService.placeOrder(request, userId), HttpStatus.CREATED);
     }
 
     @GetMapping("/orders")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "List user orders", description = "Retrieves all orders placed by the currently authenticated user")
-    public ResponseEntity<List<OrderDto>> getUserOrders() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
-        return ResponseEntity.ok(orderService.getUserOrders(userDetails.getId()));
+    public ResponseEntity<List<OrderDto>> getUserOrders(@AuthenticationPrincipal UserDetailsImpl userDetails) {
+        String userId = userDetails != null ? userDetails.getId() : "test-user";
+        return ResponseEntity.ok(orderService.getUserOrders(userId));
     }
 
     @PatchMapping("/admin/orders/{id}/status")

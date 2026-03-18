@@ -110,7 +110,7 @@ public class ProductService {
                 .description(product.getDescription())
                 .specs(product.getSpecs())
                 .featured(product.getFeatured())
-                .reviews(product.getReviews().stream()
+                .reviews(product.getReviews() == null ? new ArrayList<>() : product.getReviews().stream()
                         .map(review -> ReviewDto.builder()
                                 .id(review.getId())
                                 .userName(review.getUserName())
