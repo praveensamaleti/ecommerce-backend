@@ -91,3 +91,4 @@ The application initializes with default users for testing:
 - `com.ecommerce.backend.security`: JWT and Security configuration.
 - `com.ecommerce.backend.config`: General configuration and data initialization.
 - `com.ecommerce.backend.enums`: Enums for Roles, Categories, and Order Status.
+
