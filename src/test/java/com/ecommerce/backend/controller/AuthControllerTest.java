@@ -11,6 +11,7 @@ import com.ecommerce.backend.security.JwtUtils;
 import com.ecommerce.backend.security.UserDetailsImpl;
 import com.ecommerce.backend.service.RefreshTokenService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +24,8 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.web.servlet.MockMvc;
@@ -69,6 +72,11 @@ public class AuthControllerTest {
 
     private User sampleUser;
     private RefreshToken sampleRefreshToken;
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
 
     @BeforeEach
     void setUp() {
@@ -171,8 +179,12 @@ public class AuthControllerTest {
         UserDetailsImpl userDetails = new UserDetailsImpl(
                 "u1", "Test User", "test@example.com", "password", Collections.emptyList());
 
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(new UsernamePasswordAuthenticationToken(
+                userDetails, null, userDetails.getAuthorities()));
+        SecurityContextHolder.setContext(context);
+
         mockMvc.perform(get("/api/auth/me")
-                .with(SecurityMockMvcRequestPostProcessors.user(userDetails))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value("u1"))

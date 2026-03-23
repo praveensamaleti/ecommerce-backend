@@ -6,6 +6,7 @@ import com.ecommerce.backend.dto.CartSyncRequest;
 import com.ecommerce.backend.security.UserDetailsImpl;
 import com.ecommerce.backend.service.CartService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,8 +15,10 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -71,12 +74,24 @@ public class CartControllerTest {
                 .build();
     }
 
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
+
+    private void setSecurityContext(UserDetailsImpl user) {
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(new UsernamePasswordAuthenticationToken(
+                user, null, user.getAuthorities()));
+        SecurityContextHolder.setContext(context);
+    }
+
     @Test
     void getCart_ShouldReturnCartDto() throws Exception {
+        setSecurityContext(sampleUserDetails);
         when(cartService.getCart("u1")).thenReturn(sampleCartDto);
 
         mockMvc.perform(get("/api/cart")
-                .with(SecurityMockMvcRequestPostProcessors.user(sampleUserDetails))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].productId").value("p1"))
@@ -85,12 +100,12 @@ public class CartControllerTest {
 
     @Test
     void addToCart_ShouldReturnUpdatedCart() throws Exception {
+        setSecurityContext(sampleUserDetails);
         when(cartService.addToCart(anyString(), anyString(), anyInt())).thenReturn(sampleCartDto);
 
         Map<String, Object> body = Map.of("productId", "p1", "qty", 2);
 
         mockMvc.perform(post("/api/cart/items")
-                .with(SecurityMockMvcRequestPostProcessors.user(sampleUserDetails))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isOk())
@@ -99,12 +114,12 @@ public class CartControllerTest {
 
     @Test
     void updateCartItem_ShouldReturnUpdatedCart() throws Exception {
+        setSecurityContext(sampleUserDetails);
         when(cartService.updateCartItem(anyString(), anyString(), anyInt())).thenReturn(sampleCartDto);
 
         Map<String, Object> body = Map.of("qty", 5);
 
         mockMvc.perform(put("/api/cart/items/p1")
-                .with(SecurityMockMvcRequestPostProcessors.user(sampleUserDetails))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isOk());
@@ -112,6 +127,7 @@ public class CartControllerTest {
 
     @Test
     void removeFromCart_ShouldReturnUpdatedCart() throws Exception {
+        setSecurityContext(sampleUserDetails);
         CartDto emptyCart = CartDto.builder()
                 .items(Collections.emptyList())
                 .hasOutOfStockItems(false)
@@ -119,7 +135,6 @@ public class CartControllerTest {
         when(cartService.removeFromCart(anyString(), anyString())).thenReturn(emptyCart);
 
         mockMvc.perform(delete("/api/cart/items/p1")
-                .with(SecurityMockMvcRequestPostProcessors.user(sampleUserDetails))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items").isEmpty());
@@ -127,20 +142,20 @@ public class CartControllerTest {
 
     @Test
     void clearCart_ShouldReturnNoContent() throws Exception {
+        setSecurityContext(sampleUserDetails);
         mockMvc.perform(delete("/api/cart")
-                .with(SecurityMockMvcRequestPostProcessors.user(sampleUserDetails))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNoContent());
     }
 
     @Test
     void addToCart_WithoutQty_DefaultsToOne() throws Exception {
+        setSecurityContext(sampleUserDetails);
         when(cartService.addToCart(anyString(), anyString(), anyInt())).thenReturn(sampleCartDto);
 
         Map<String, Object> body = Map.of("productId", "p1");
 
         mockMvc.perform(post("/api/cart/items")
-                .with(SecurityMockMvcRequestPostProcessors.user(sampleUserDetails))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isOk())
@@ -149,6 +164,7 @@ public class CartControllerTest {
 
     @Test
     void syncCart_ShouldReturnMergedCart() throws Exception {
+        setSecurityContext(sampleUserDetails);
         when(cartService.syncCart(anyString(), anyList())).thenReturn(sampleCartDto);
 
         CartSyncRequest request = new CartSyncRequest(
@@ -156,7 +172,6 @@ public class CartControllerTest {
         );
 
         mockMvc.perform(post("/api/cart/sync")
-                .with(SecurityMockMvcRequestPostProcessors.user(sampleUserDetails))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
