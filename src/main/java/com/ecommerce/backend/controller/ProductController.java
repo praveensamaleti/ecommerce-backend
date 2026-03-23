@@ -14,6 +14,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/products")
@@ -34,6 +37,16 @@ public class ProductController {
             @Parameter(description = "Number of items per page") @RequestParam(defaultValue = "10") int pageSize) {
         
         return ResponseEntity.ok(productService.getAllProducts(query, category, minPrice, maxPrice, page, pageSize));
+    }
+
+    @GetMapping("/categories")
+    @Operation(summary = "Get all product categories", description = "Returns the list of available product categories")
+    public ResponseEntity<List<String>> getCategories() {
+        return ResponseEntity.ok(
+            Arrays.stream(Category.values())
+                  .map(Enum::name)
+                  .collect(Collectors.toList())
+        );
     }
 
     @GetMapping("/{id}")

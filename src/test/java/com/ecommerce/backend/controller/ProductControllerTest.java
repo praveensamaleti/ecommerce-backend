@@ -116,4 +116,13 @@ public class ProductControllerTest {
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNoContent());
     }
+
+    @Test
+    void getCategories_ShouldReturn200WithCategoryList() throws Exception {
+        mockMvc.perform(get("/api/products/categories")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(5));
+    }
 }
