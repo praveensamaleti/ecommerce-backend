@@ -17,4 +17,10 @@ public class CartItemDto {
     private String imageUrl;
     private boolean inStock;
     private int availableStock;
+
+    /** Variant selected for this cart item — null if the product has no variants. */
+    private String variantId;
+
+    /** Human-readable variant label shown in the cart, e.g. "Red / M". */
+    private String variantLabel;
 }

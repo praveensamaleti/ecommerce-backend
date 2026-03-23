@@ -16,4 +16,10 @@ public class OrderItemDto {
     private String name;
     private BigDecimal price;
     private Integer qty;
+
+    /** Variant that was ordered — null for products without variants. */
+    private String variantId;
+
+    /** Snapshot of variant display label at order time, e.g. "Red / M". */
+    private String variantLabel;
 }

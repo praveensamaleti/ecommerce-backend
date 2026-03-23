@@ -31,6 +31,17 @@ public class OrderItem {
     @Column(nullable = false)
     private Integer qty;
 
+    /** Variant selected at order time — null for products without variants. */
+    @Column(name = "variant_id")
+    private String variantId;
+
+    /**
+     * Human-readable snapshot of the variant at order time, e.g. "Red / M".
+     * Persisted so order history remains accurate even if the variant is later renamed.
+     */
+    @Column(name = "variant_label")
+    private String variantLabel;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id")
     private Order order;

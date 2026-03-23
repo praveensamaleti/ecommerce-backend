@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.*;
@@ -86,6 +87,10 @@ public class CartControllerTest {
         SecurityContextHolder.setContext(context);
     }
 
+    // ------------------------------------------------------------------
+    // getCart
+    // ------------------------------------------------------------------
+
     @Test
     void getCart_ShouldReturnCartDto() throws Exception {
         setSecurityContext(sampleUserDetails);
@@ -98,10 +103,15 @@ public class CartControllerTest {
                 .andExpect(jsonPath("$.hasOutOfStockItems").value(false));
     }
 
+    // ------------------------------------------------------------------
+    // addToCart — no variant
+    // ------------------------------------------------------------------
+
     @Test
     void addToCart_ShouldReturnUpdatedCart() throws Exception {
         setSecurityContext(sampleUserDetails);
-        when(cartService.addToCart(anyString(), anyString(), anyInt())).thenReturn(sampleCartDto);
+        when(cartService.addToCart(anyString(), anyString(), anyInt(), any()))
+                .thenReturn(sampleCartDto);
 
         Map<String, Object> body = Map.of("productId", "p1", "qty", 2);
 
@@ -113,45 +123,10 @@ public class CartControllerTest {
     }
 
     @Test
-    void updateCartItem_ShouldReturnUpdatedCart() throws Exception {
-        setSecurityContext(sampleUserDetails);
-        when(cartService.updateCartItem(anyString(), anyString(), anyInt())).thenReturn(sampleCartDto);
-
-        Map<String, Object> body = Map.of("qty", 5);
-
-        mockMvc.perform(put("/api/cart/items/p1")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(body)))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    void removeFromCart_ShouldReturnUpdatedCart() throws Exception {
-        setSecurityContext(sampleUserDetails);
-        CartDto emptyCart = CartDto.builder()
-                .items(Collections.emptyList())
-                .hasOutOfStockItems(false)
-                .build();
-        when(cartService.removeFromCart(anyString(), anyString())).thenReturn(emptyCart);
-
-        mockMvc.perform(delete("/api/cart/items/p1")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items").isEmpty());
-    }
-
-    @Test
-    void clearCart_ShouldReturnNoContent() throws Exception {
-        setSecurityContext(sampleUserDetails);
-        mockMvc.perform(delete("/api/cart")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isNoContent());
-    }
-
-    @Test
     void addToCart_WithoutQty_DefaultsToOne() throws Exception {
         setSecurityContext(sampleUserDetails);
-        when(cartService.addToCart(anyString(), anyString(), anyInt())).thenReturn(sampleCartDto);
+        when(cartService.addToCart(anyString(), anyString(), anyInt(), any()))
+                .thenReturn(sampleCartDto);
 
         Map<String, Object> body = Map.of("productId", "p1");
 
@@ -162,13 +137,136 @@ public class CartControllerTest {
                 .andExpect(jsonPath("$.items[0].productId").value("p1"));
     }
 
+    // ------------------------------------------------------------------
+    // addToCart — with variantId
+    // ------------------------------------------------------------------
+
+    @Test
+    void addToCart_WithVariantId_PassesVariantToService() throws Exception {
+        setSecurityContext(sampleUserDetails);
+
+        CartItemDto variantItemDto = CartItemDto.builder()
+                .productId("p1")
+                .qty(1)
+                .variantId("v1")
+                .productName("Test Product")
+                .price(new BigDecimal("60.00"))
+                .inStock(true)
+                .availableStock(8)
+                .build();
+        CartDto variantCartDto = CartDto.builder()
+                .items(Arrays.asList(variantItemDto))
+                .hasOutOfStockItems(false)
+                .build();
+
+        when(cartService.addToCart(eq("u1"), eq("p1"), eq(1), eq("v1")))
+                .thenReturn(variantCartDto);
+
+        // Use LinkedHashMap to preserve key order for serialization
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("productId", "p1");
+        body.put("qty", 1);
+        body.put("variantId", "v1");
+
+        mockMvc.perform(post("/api/cart/items")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].productId").value("p1"))
+                .andExpect(jsonPath("$.items[0].variantId").value("v1"));
+    }
+
+    // ------------------------------------------------------------------
+    // updateCartItem
+    // ------------------------------------------------------------------
+
+    @Test
+    void updateCartItem_ShouldReturnUpdatedCart() throws Exception {
+        setSecurityContext(sampleUserDetails);
+        when(cartService.updateCartItem(anyString(), anyString(), anyInt(), any()))
+                .thenReturn(sampleCartDto);
+
+        Map<String, Object> body = Map.of("qty", 5);
+
+        mockMvc.perform(put("/api/cart/items/p1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void updateCartItem_WithVariantId_PassesVariantQueryParamToService() throws Exception {
+        setSecurityContext(sampleUserDetails);
+        when(cartService.updateCartItem(eq("u1"), eq("p1"), eq(3), eq("v1")))
+                .thenReturn(sampleCartDto);
+
+        Map<String, Object> body = Map.of("qty", 3);
+
+        mockMvc.perform(put("/api/cart/items/p1")
+                .param("variantId", "v1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isOk());
+    }
+
+    // ------------------------------------------------------------------
+    // removeFromCart
+    // ------------------------------------------------------------------
+
+    @Test
+    void removeFromCart_ShouldReturnUpdatedCart() throws Exception {
+        setSecurityContext(sampleUserDetails);
+        CartDto emptyCart = CartDto.builder()
+                .items(Collections.emptyList())
+                .hasOutOfStockItems(false)
+                .build();
+        when(cartService.removeFromCart(anyString(), anyString(), any())).thenReturn(emptyCart);
+
+        mockMvc.perform(delete("/api/cart/items/p1")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isEmpty());
+    }
+
+    @Test
+    void removeFromCart_WithVariantId_PassesVariantQueryParamToService() throws Exception {
+        setSecurityContext(sampleUserDetails);
+        CartDto emptyCart = CartDto.builder()
+                .items(Collections.emptyList())
+                .hasOutOfStockItems(false)
+                .build();
+        when(cartService.removeFromCart(eq("u1"), eq("p1"), eq("v1"))).thenReturn(emptyCart);
+
+        mockMvc.perform(delete("/api/cart/items/p1")
+                .param("variantId", "v1")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isEmpty());
+    }
+
+    // ------------------------------------------------------------------
+    // clearCart
+    // ------------------------------------------------------------------
+
+    @Test
+    void clearCart_ShouldReturnNoContent() throws Exception {
+        setSecurityContext(sampleUserDetails);
+        mockMvc.perform(delete("/api/cart")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNoContent());
+    }
+
+    // ------------------------------------------------------------------
+    // syncCart
+    // ------------------------------------------------------------------
+
     @Test
     void syncCart_ShouldReturnMergedCart() throws Exception {
         setSecurityContext(sampleUserDetails);
         when(cartService.syncCart(anyString(), anyList())).thenReturn(sampleCartDto);
 
         CartSyncRequest request = new CartSyncRequest(
-                Arrays.asList(new CartSyncRequest.SyncItem("p1", 2))
+                Arrays.asList(new CartSyncRequest.SyncItem("p1", 2, null))
         );
 
         mockMvc.perform(post("/api/cart/sync")
@@ -176,5 +274,30 @@ public class CartControllerTest {
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].productId").value("p1"));
+    }
+
+    @Test
+    void syncCart_WithVariantId_ShouldReturnMergedCart() throws Exception {
+        setSecurityContext(sampleUserDetails);
+
+        CartItemDto variantItemDto = CartItemDto.builder()
+                .productId("p1").qty(2).variantId("v1")
+                .productName("Test Product").price(new BigDecimal("60.00"))
+                .inStock(true).availableStock(8).build();
+        CartDto variantCartDto = CartDto.builder()
+                .items(Arrays.asList(variantItemDto)).hasOutOfStockItems(false).build();
+
+        when(cartService.syncCart(anyString(), anyList())).thenReturn(variantCartDto);
+
+        CartSyncRequest request = new CartSyncRequest(
+                Arrays.asList(new CartSyncRequest.SyncItem("p1", 2, "v1"))
+        );
+
+        mockMvc.perform(post("/api/cart/sync")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].productId").value("p1"))
+                .andExpect(jsonPath("$.items[0].variantId").value("v1"));
     }
 }

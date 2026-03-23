@@ -28,6 +28,15 @@ public class CartItem {
     @Column(nullable = false)
     private int qty;
 
+    /**
+     * ID of the selected variant. Null when the product has no variants.
+     * DB uniqueness enforced by two partial indexes (see V4 migration):
+     *   - UNIQUE(user_id, product_id) WHERE variant_id IS NULL
+     *   - UNIQUE(user_id, product_id, variant_id) WHERE variant_id IS NOT NULL
+     */
+    @Column(name = "variant_id")
+    private String variantId;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

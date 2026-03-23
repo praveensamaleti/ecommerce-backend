@@ -6,9 +6,13 @@ import com.ecommerce.backend.dto.OrderItemDto;
 import com.ecommerce.backend.entity.Order;
 import com.ecommerce.backend.entity.OrderItem;
 import com.ecommerce.backend.entity.Product;
+import com.ecommerce.backend.entity.ProductVariant;
 import com.ecommerce.backend.enums.OrderStatus;
+import com.ecommerce.backend.exception.BusinessException;
+import com.ecommerce.backend.exception.ResourceNotFoundException;
 import com.ecommerce.backend.repository.OrderRepository;
 import com.ecommerce.backend.repository.ProductRepository;
+import com.ecommerce.backend.repository.ProductVariantRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +32,9 @@ public class OrderService {
     @Autowired
     private ProductRepository productRepository;
 
+    @Autowired
+    private ProductVariantRepository variantRepository;
+
     @Transactional
     public OrderDto placeOrder(CreateOrderRequest request, String userId) {
         Order order = new Order();
@@ -43,35 +50,58 @@ public class OrderService {
 
         for (CreateOrderRequest.OrderItemRequest itemReq : request.getItems()) {
             Product product = productRepository.findById(itemReq.getProductId())
-                    .orElseThrow(() -> new RuntimeException("Product not found  : " + itemReq.getProductId()));
-            
+                    .orElseThrow(() -> new ResourceNotFoundException("Product", itemReq.getProductId()));
+
+            BigDecimal unitPrice = product.getPrice();
+            String variantId = itemReq.getVariantId();
+            String variantLabel = null;
+
+            if (variantId != null && !variantId.isBlank()) {
+                // Variant-specific stock check and price resolution
+                ProductVariant variant = variantRepository.findById(variantId)
+                        .orElseThrow(() -> new ResourceNotFoundException("ProductVariant", variantId));
+
+                if (variant.getStock() < itemReq.getQty()) {
+                    throw new BusinessException(
+                        "Insufficient stock for variant '" + variantId + "' of product: " + product.getName());
+                }
+
+                unitPrice = ProductService.resolvePrice(variant.getPrice(), product.getPrice());
+                variantLabel = ProductService.buildVariantLabel(variant.getAttributes());
+
+                // Deduct from variant stock
+                variant.setStock(variant.getStock() - itemReq.getQty());
+                variantRepository.save(variant);
+            } else {
+                // No variant selected — use product-level stock
+                if (product.getStock() < itemReq.getQty()) {
+                    throw new BusinessException("Insufficient stock for product: " + product.getName());
+                }
+                product.setStock(product.getStock() - itemReq.getQty());
+                productRepository.save(product);
+            }
+
             OrderItem item = OrderItem.builder()
                     .productId(product.getId())
                     .name(product.getName())
-                    .price(product.getPrice())
+                    .price(unitPrice)
                     .qty(itemReq.getQty())
+                    .variantId(variantId)
+                    .variantLabel(variantLabel)
                     .order(order)
                     .build();
-            
+
             items.add(item);
-            subtotal = subtotal.add(product.getPrice().multiply(BigDecimal.valueOf(itemReq.getQty())));
-            
-            // Update stock
-            if (product.getStock() < itemReq.getQty()) {
-                throw new RuntimeException("Insufficient stock for product: " + product.getName());
-            }
-            product.setStock(product.getStock() - itemReq.getQty());
-            productRepository.save(product);
+            subtotal = subtotal.add(unitPrice.multiply(BigDecimal.valueOf(itemReq.getQty())));
         }
 
         order.setItems(items);
         order.setSubtotal(subtotal);
-        order.setDiscount(BigDecimal.ZERO); // Simplified
+        order.setDiscount(BigDecimal.ZERO);
         order.setTax(subtotal.multiply(new BigDecimal("0.08"))); // 8% tax
         order.setTotal(order.getSubtotal().subtract(order.getDiscount()).add(order.getTax()));
 
-        Order savedOrder = orderRepository.save(order);
-        return convertToDto(savedOrder);
+        return convertToDto(orderRepository.save(order));
     }
 
     public List<OrderDto> getUserOrders(String userId) {
@@ -83,7 +113,7 @@ public class OrderService {
     @Transactional
     public OrderDto updateOrderStatus(String id, OrderStatus status) {
         Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Order not found: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Order", id));
         order.setStatus(status);
         return convertToDto(orderRepository.save(order));
     }
@@ -106,6 +136,8 @@ public class OrderService {
                                 .name(item.getName())
                                 .price(item.getPrice())
                                 .qty(item.getQty())
+                                .variantId(item.getVariantId())
+                                .variantLabel(item.getVariantLabel())
                                 .build())
                         .collect(Collectors.toList()))
                 .build();

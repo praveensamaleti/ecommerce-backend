@@ -50,6 +50,9 @@ public class ProductDto {
     @Schema(description = "List of user reviews")
     private List<ReviewDto> reviews;
 
+    @Schema(description = "Product variants (size, color, etc.); empty list means no variants")
+    private List<ProductVariantDto> variants;
+
     @Schema(description = "Whether the product is featured", example = "true")
     private Boolean featured;
 }

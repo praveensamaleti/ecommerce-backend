@@ -17,5 +17,7 @@ public class CartSyncRequest {
     public static class SyncItem {
         private String productId;
         private int qty;
+        /** Null for products without variants. */
+        private String variantId;
     }
 }

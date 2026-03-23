@@ -21,5 +21,7 @@ public class CreateOrderRequest {
     public static class OrderItemRequest {
         private String productId;
         private Integer qty;
+        /** Null for products without variants. */
+        private String variantId;
     }
 }
