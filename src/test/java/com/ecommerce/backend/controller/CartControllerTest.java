@@ -134,6 +134,20 @@ public class CartControllerTest {
     }
 
     @Test
+    void addToCart_WithoutQty_DefaultsToOne() throws Exception {
+        when(cartService.addToCart(anyString(), anyString(), anyInt())).thenReturn(sampleCartDto);
+
+        Map<String, Object> body = Map.of("productId", "p1");
+
+        mockMvc.perform(post("/api/cart/items")
+                .with(SecurityMockMvcRequestPostProcessors.user(sampleUserDetails))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].productId").value("p1"));
+    }
+
+    @Test
     void syncCart_ShouldReturnMergedCart() throws Exception {
         when(cartService.syncCart(anyString(), anyList())).thenReturn(sampleCartDto);
 

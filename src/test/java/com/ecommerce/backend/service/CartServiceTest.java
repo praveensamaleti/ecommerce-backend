@@ -198,4 +198,69 @@ public class CartServiceTest {
         assertTrue(result.isHasOutOfStockItems());
         assertFalse(result.getItems().get(0).isInStock());
     }
+
+    @Test
+    void buildCartDto_ProductNotFound_ReturnsItemWithoutProductDetails() {
+        when(cartItemRepository.findByUserId(USER_ID)).thenReturn(Arrays.asList(sampleCartItem));
+        when(productRepository.findById(PRODUCT_ID)).thenReturn(Optional.empty());
+
+        CartDto result = cartService.getCart(USER_ID);
+
+        assertNotNull(result);
+        assertEquals(1, result.getItems().size());
+        assertEquals(PRODUCT_ID, result.getItems().get(0).getProductId());
+        assertNull(result.getItems().get(0).getProductName());
+        // item with no product info has inStock=false by default, so hasOutOfStockItems=true
+        assertTrue(result.isHasOutOfStockItems());
+    }
+
+    @Test
+    void buildCartDto_EmptyImages_NullImageUrl() {
+        Product productWithNoImages = Product.builder()
+                .id(PRODUCT_ID)
+                .name("No Image Product")
+                .price(new BigDecimal("20.00"))
+                .stock(5)
+                .images(Collections.emptyList())
+                .build();
+        when(cartItemRepository.findByUserId(USER_ID)).thenReturn(Arrays.asList(sampleCartItem));
+        when(productRepository.findById(PRODUCT_ID)).thenReturn(Optional.of(productWithNoImages));
+
+        CartDto result = cartService.getCart(USER_ID);
+
+        assertNotNull(result);
+        assertNull(result.getItems().get(0).getImageUrl());
+        assertTrue(result.getItems().get(0).isInStock());
+    }
+
+    @Test
+    void buildCartDto_NullStock_TreatedAsOutOfStock() {
+        Product productWithNullStock = Product.builder()
+                .id(PRODUCT_ID)
+                .name("Null Stock Product")
+                .price(new BigDecimal("15.00"))
+                .stock(null)
+                .images(Arrays.asList("img.jpg"))
+                .build();
+        when(cartItemRepository.findByUserId(USER_ID)).thenReturn(Arrays.asList(sampleCartItem));
+        when(productRepository.findById(PRODUCT_ID)).thenReturn(Optional.of(productWithNullStock));
+
+        CartDto result = cartService.getCart(USER_ID);
+
+        assertNotNull(result);
+        assertFalse(result.getItems().get(0).isInStock());
+        assertEquals(0, result.getItems().get(0).getAvailableStock());
+        assertTrue(result.isHasOutOfStockItems());
+    }
+
+    @Test
+    void syncCart_NullItems_ReturnsCurrentCart() {
+        when(cartItemRepository.findByUserId(USER_ID)).thenReturn(Arrays.asList(sampleCartItem));
+        when(productRepository.findById(PRODUCT_ID)).thenReturn(Optional.of(sampleProduct));
+
+        CartDto result = cartService.syncCart(USER_ID, null);
+
+        assertNotNull(result);
+        verify(cartItemRepository, never()).save(any());
+    }
 }
