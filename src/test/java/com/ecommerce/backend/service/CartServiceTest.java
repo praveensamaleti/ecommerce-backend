@@ -158,22 +158,45 @@ public class CartServiceTest {
     }
 
     @Test
-    void syncCart_AddsOnlyMissingItems() {
+    void syncCart_UpsertsItems_UpdatesExistingQty() {
         CartSyncRequest.SyncItem newItem = new CartSyncRequest.SyncItem("p2", 1);
         CartSyncRequest.SyncItem existingItem = new CartSyncRequest.SyncItem(PRODUCT_ID, 3);
 
+        CartItem existingCartItem = CartItem.builder()
+                .id("c1").userId(USER_ID).productId(PRODUCT_ID).qty(2).build();
+
+        // findByUserId is called once for the delete-stale step, then per-product lookups for upsert
+        when(cartItemRepository.findByUserId(USER_ID)).thenReturn(Arrays.asList(existingCartItem));
+        when(cartItemRepository.findByUserIdAndProductId(USER_ID, PRODUCT_ID)).thenReturn(Optional.of(existingCartItem));
         when(cartItemRepository.findByUserIdAndProductId(USER_ID, "p2")).thenReturn(Optional.empty());
-        when(cartItemRepository.findByUserIdAndProductId(USER_ID, PRODUCT_ID)).thenReturn(Optional.of(sampleCartItem));
         when(cartItemRepository.save(any(CartItem.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(cartItemRepository.findByUserId(USER_ID)).thenReturn(Arrays.asList(sampleCartItem));
         when(productRepository.findById(anyString())).thenReturn(Optional.of(sampleProduct));
 
         CartDto result = cartService.syncCart(USER_ID, Arrays.asList(newItem, existingItem));
 
         assertNotNull(result);
-        // Only the new item should be saved; existing item on server keeps server qty
-        verify(cartItemRepository, times(1)).save(argThat(item -> item.getProductId().equals("p2")));
-        verify(cartItemRepository, never()).save(argThat(item -> item.getProductId().equals(PRODUCT_ID)));
+        // Existing item must be updated to client qty (3), not kept at server qty (2)
+        verify(cartItemRepository).save(argThat(item -> item.getProductId().equals(PRODUCT_ID) && item.getQty() == 3));
+        // New item must be created
+        verify(cartItemRepository).save(argThat(item -> item.getProductId().equals("p2") && item.getQty() == 1));
+    }
+
+    @Test
+    void syncCart_RemovesServerItemsNotInRequest() {
+        CartItem serverOnlyItem = CartItem.builder()
+                .id("c2").userId(USER_ID).productId("p_server_only").qty(1).build();
+        CartSyncRequest.SyncItem clientItem = new CartSyncRequest.SyncItem(PRODUCT_ID, 2);
+
+        when(cartItemRepository.findByUserId(USER_ID)).thenReturn(Arrays.asList(sampleCartItem, serverOnlyItem));
+        when(cartItemRepository.findByUserIdAndProductId(USER_ID, PRODUCT_ID)).thenReturn(Optional.of(sampleCartItem));
+        when(cartItemRepository.save(any(CartItem.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(productRepository.findById(anyString())).thenReturn(Optional.of(sampleProduct));
+        doNothing().when(cartItemRepository).deleteByUserIdAndProductId(anyString(), anyString());
+
+        cartService.syncCart(USER_ID, Arrays.asList(clientItem));
+
+        // Item present on server but absent from client request must be deleted
+        verify(cartItemRepository).deleteByUserIdAndProductId(USER_ID, "p_server_only");
     }
 
     @Test

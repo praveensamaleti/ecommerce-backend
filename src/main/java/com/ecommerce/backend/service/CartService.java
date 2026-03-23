@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -70,17 +71,29 @@ public class CartService {
     @Transactional
     public CartDto syncCart(String userId, List<CartSyncRequest.SyncItem> incomingItems) {
         if (incomingItems != null) {
+            Set<String> incomingProductIds = incomingItems.stream()
+                    .map(CartSyncRequest.SyncItem::getProductId)
+                    .collect(Collectors.toSet());
+
+            // Delete server items not in the incoming list (handles client-side removals)
+            cartItemRepository.findByUserId(userId).stream()
+                    .filter(item -> !incomingProductIds.contains(item.getProductId()))
+                    .forEach(item -> cartItemRepository.deleteByUserIdAndProductId(userId, item.getProductId()));
+
+            // Upsert all incoming items — client qty is authoritative
             for (CartSyncRequest.SyncItem syncItem : incomingItems) {
                 Optional<CartItem> existing = cartItemRepository.findByUserIdAndProductId(userId, syncItem.getProductId());
-                if (existing.isEmpty()) {
-                    CartItem item = CartItem.builder()
+                if (existing.isPresent()) {
+                    CartItem item = existing.get();
+                    item.setQty(syncItem.getQty());
+                    cartItemRepository.save(item);
+                } else {
+                    cartItemRepository.save(CartItem.builder()
                             .userId(userId)
                             .productId(syncItem.getProductId())
                             .qty(syncItem.getQty())
-                            .build();
-                    cartItemRepository.save(item);
+                            .build());
                 }
-                // Items already on server keep server qty
             }
         }
         return buildCartDto(userId);
