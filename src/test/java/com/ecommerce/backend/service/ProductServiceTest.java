@@ -121,6 +121,13 @@ public class ProductServiceTest {
     }
 
     @Test
+    void updateProduct_WhenProductDoesNotExist_ShouldThrowException() {
+        when(productRepository.findById("nonexistent")).thenReturn(Optional.empty());
+
+        assertThrows(RuntimeException.class, () -> productService.updateProduct("nonexistent", sampleProductDto));
+    }
+
+    @Test
     void deleteProduct_ShouldCallRepository() {
         doNothing().when(productRepository).deleteById("p1");
 

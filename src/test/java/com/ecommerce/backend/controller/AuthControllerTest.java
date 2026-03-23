@@ -2,6 +2,7 @@ package com.ecommerce.backend.controller;
 
 import com.ecommerce.backend.dto.LoginRequest;
 import com.ecommerce.backend.dto.RegisterRequest;
+import com.ecommerce.backend.dto.TokenRefreshRequest;
 import com.ecommerce.backend.entity.RefreshToken;
 import com.ecommerce.backend.entity.User;
 import com.ecommerce.backend.enums.UserRole;
@@ -21,7 +22,9 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Collections;
@@ -31,6 +34,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -141,5 +145,63 @@ public class AuthControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(registerRequest)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void refreshToken_WhenValid_ShouldReturnNewAccessToken() throws Exception {
+        RefreshToken tokenWithUser = new RefreshToken();
+        tokenWithUser.setToken("refresh-token-123");
+        tokenWithUser.setUser(sampleUser);
+
+        when(refreshTokenService.findByToken("refresh-token-123")).thenReturn(Optional.of(tokenWithUser));
+        when(refreshTokenService.verifyExpiration(tokenWithUser)).thenReturn(tokenWithUser);
+        when(jwtUtils.generateTokenFromUsername("test@example.com")).thenReturn("new-access-token");
+
+        TokenRefreshRequest request = new TokenRefreshRequest();
+        request.setRefreshToken("refresh-token-123");
+
+        mockMvc.perform(post("/api/auth/refreshtoken")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void getCurrentUser_WhenAuthenticated_ShouldReturnUserDto() throws Exception {
+        UserDetailsImpl userDetails = new UserDetailsImpl(
+                "u1", "Test User", "test@example.com", "password", Collections.emptyList());
+
+        mockMvc.perform(get("/api/auth/me")
+                .with(SecurityMockMvcRequestPostProcessors.user(userDetails))
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value("u1"))
+                .andExpect(jsonPath("$.email").value("test@example.com"));
+    }
+
+    @Test
+    void getCurrentUser_WhenNotAuthenticated_ShouldReturnUnauthorized() throws Exception {
+        mockMvc.perform(get("/api/auth/me")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void logout_WhenAuthenticated_ShouldReturnOk() throws Exception {
+        UserDetailsImpl userDetails = new UserDetailsImpl(
+                "u1", "Test User", "test@example.com", "password",
+                Collections.singletonList(new SimpleGrantedAuthority("ROLE_user")));
+
+        mockMvc.perform(post("/api/auth/logout")
+                .with(SecurityMockMvcRequestPostProcessors.user(userDetails))
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void logout_WhenNotAuthenticated_ShouldReturnOk() throws Exception {
+        mockMvc.perform(post("/api/auth/logout")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
     }
 }
